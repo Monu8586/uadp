@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ledgerlight – verified analysis and reconciliation</title>
+<style>
+:root{--bg:#f3f5f1;--card:#fff;--ink:#1c2433;--mut:#5d6778;--line:#d5dbd2;--acc:#2f3e8f;--acc2:#e8a317;--ok:#1f7a4d;--warn:#a86a00;--bad:#b3261e;--okbg:#e4f3ea;--warnbg:#fbf0d9;--badbg:#f9e3e1;
+color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161f;--card:#1a2030;--ink:#e6e9f0;--mut:#98a2b5;--line:#2c3447;--acc:#8c9cf2;--acc2:#f0b84a;--ok:#5fd39a;--warn:#f0b84a;--bad:#ff8b82;--okbg:#17332a;--warnbg:#3a2f14;--badbg:#3d1d1b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161f;--card:#1a2030;--ink:#e6e9f0;--mut:#98a2b5;--line:#2c3447;--acc:#8c9cf2;--acc2:#f0b84a;--ok:#5fd39a;--warn:#f0b84a;--bad:#ff8b82;--okbg:#17332a;--warnbg:#3a2f14;--badbg:#3d1d1b;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Avenir Next","Segoe UI",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:16px}
+h1{font:700 26px/1.1 Georgia,"Iowan Old Style",serif;margin:0}
+h2{font:700 18px Georgia,serif;margin:0 0 8px}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:baseline;border-bottom:3px double var(--line);padding-bottom:10px}
+.status{font-size:13px;color:var(--mut)}
+.status b{color:var(--ok)}
+nav{display:flex;gap:4px;margin:14px 0;flex-wrap:wrap}
+nav button{background:none;border:1px solid var(--line);color:var(--ink);padding:8px 14px;border-radius:6px;cursor:pointer;font:inherit}
+nav button[aria-selected="true"]{background:var(--acc);color:#fff;border-color:var(--acc)}
+:root[data-theme="dark"] nav button[aria-selected="true"]{color:#12161f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) nav button[aria-selected="true"]{color:#12161f}}
+button,select,input{font:inherit;color:var(--ink)}
+button.p{background:var(--acc);color:#fff;border:0;padding:8px 14px;border-radius:6px;cursor:pointer}
+:root[data-theme="dark"] button.p{color:#12161f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button.p{color:#12161f}}
+button.s{background:none;border:1px solid var(--line);padding:7px 12px;border-radius:6px;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--acc2);outline-offset:2px}
+select,input[type=text],input[type=number]{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:100%}
+section{display:none}section.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:8px 0}
+label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:3px}
+.tw{overflow-x:auto;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-weight:700;font-size:13px}
+.v{background:var(--okbg);color:var(--ok)}.u{background:var(--warnbg);color:var(--warn)}.r{background:var(--badbg);color:var(--bad)}
+.eq{font:600 16px/1.7 Georgia,serif;border-left:4px solid var(--acc2);padding:4px 12px;margin:8px 0;overflow-wrap:anywhere}
+.mut{color:var(--mut);font-size:13px}.warn{color:var(--warn)}.bad{color:var(--bad)}.ok{color:var(--ok)}
+ul{margin:6px 0;padding-left:20px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Ledgerlight</h1>
+<div class="status"><b>AI off</b> · Tier 0 · nothing leaves this browser · INR · IST</div>
+</header>
+<nav role="tablist">
+<button role="tab" data-t="data" aria-selected="true">Data</button>
+<button role="tab" data-t="ask" aria-selected="false">Ask</button>
+<button role="tab" data-t="rec" aria-selected="false">Reconcile</button>
+<button role="tab" data-t="ev" aria-selected="false">Evidence</button>
+</nav>
+
+<section id="data" class="on">
+<div class="card">
+<h2>Upload a file</h2>
+<div class="row">
+<label>File (CSV, ; or tab or | separated)<input type="file" id="file" accept=".csv,.txt,.tsv"></label>
+<label>Authorization note (required)<input type="text" id="auth" placeholder="Synthetic, or Authorized by … on …" size="34"></label>
+<button class="p" id="up" disabled>Upload</button>
+<button class="s" id="sample">Load synthetic sample data</button>
+</div>
+<div class="mut">The original text is kept unchanged and hashed with SHA-256. Totals use whole paise, never floating point.</div>
+<div id="msg" class="mut" role="status"></div>
+</div>
+<div id="dsl"></div>
+</section>
+
+<section id="ask">
+<div class="card">
+<h2>Ask a question</h2>
+<div id="askgate" class="mut"></div>
+<div class="row">
+<label>Dataset<select id="aDs"></select></label>
+<label>Question<select id="aQ">
+<option value="cat">Top categories by total amount</option>
+<option value="trend">Monthly trend of total amount</option>
+<option value="tot">Total amount</option></select></label>
+<label>Amount column<select id="aAmt"></select></label>
+<label>Group or date column<select id="aGrp"></select></label>
+<label>Top N<input type="number" id="aN" value="10" min="1" max="50" style="width:70px"></label>
+<button class="p" id="aRun">Run</button>
+</div>
+</div>
+<div id="aOut"></div>
+</section>
+
+<section id="rec">
+<div class="card">
+<h2>Reconcile two datasets</h2>
+<div id="recgate" class="mut"></div>
+<div class="cols">
+<div><b>Left (for example payment gateway)</b>
+<div class="row"><label>Dataset<select id="lDs"></select></label></div>
+<div class="row"><label>Key<select id="lK"></select></label><label>Amount<select id="lA"></select></label><label>Date<select id="lD"></select></label></div></div>
+<div><b>Right (for example bank statement)</b>
+<div class="row"><label>Dataset<select id="rDs"></select></label></div>
+<div class="row"><label>Key<select id="rK"></select></label><label>Amount<select id="rA"></select></label><label>Date<select id="rD"></select></label></div></div>
+</div>
+<div class="row">
+<label>Amount tolerance (₹)<input type="number" id="tol" value="0" min="0" style="width:90px"></label>
+<label>Date window (days)<input type="number" id="win" value="2" min="0" style="width:90px"></label>
+<button class="p" id="rRun">Confirm strategy and run</button>
+</div>
+<ul class="mut">
+<li>Pass 1: exact key, one-to-one. Repeated keys that cannot be paired exactly become ambiguous.</li>
+<li>Pass 2: amount within tolerance and date within the window, only when both rows have exactly one candidate.</li>
+</ul>
+</div>
+<div id="rOut"></div>
+</section>
+
+<section id="ev">
+<div class="card"><h2>Evidence package</h2>
+<div class="mut">Download the plan, checks, file hashes and result hash for the latest run.</div>
+<div class="row"><button class="p" id="evDl" disabled>Download evidence (JSON)</button></div></div>
+<div class="card"><h2>Audit log</h2><ul id="aud"><li class="mut">No events yet.</li></ul></div>
+<div class="card"><h2>What this build covers</h2>
+<div class="cols">
+<div><b class="ok">Built</b><ul><li>Upload with authorization note and hash (F-01)</li><li>Structure detection, profile, warnings (F-02, F-03)</li><li>Confirm types and roles (F-04)</li><li>Template questions with explicit plan (F-05, F-08)</li><li>Result certification (F-17), evidence (F-18), CSV export (F-10, F-16)</li><li>Reconciliation with passes, buckets, tie-out, review list (F-12 to F-15)</li><li>Zero network calls, Tier 0 (F-20)</li></ul></div>
+<div><b class="warn">Not in this build</b><ul><li>AI planner, gateway and spend cap</li><li>XLSX files, SQL sandbox, independent reference engine in a separate process</li><li>Split settlements and allocation ledger</li><li>Custom strategies, saved templates, metric versions</li><li>Replay, deletion, benchmark, gold cases, accounts</li></ul>
+<div class="mut">The full v0.1 is the Python build described in the plan documents. This page is a working prototype of its core rules.</div></div>
+</div></div>
+</section>
+</div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const S={ds:[],last:null,audit:[]};
+const inr=p=>{const n=p<0;p=Math.abs(p);let s=String(Math.floor(p/100));if(s.length>3)s=s.slice(0,-3).replace(/\B(?=(\d{2})+(?!\d))/g,",")+","+s.slice(-3);return(n?"-":"")+"₹"+s+"."+String(p%100).padStart(2,"0")};
+const sha=async t=>[...new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t)))].map(x=>x.toString(16).padStart(2,"0")).join("");
+function log(m){S.audit.unshift(new Date().toLocaleTimeString("en-IN")+" – "+m);$("#aud").innerHTML=S.audit.slice(0,40).map(x=>"<li>"+esc(x)+"</li>").join("")}
+// money: whole paise, integer arithmetic (route 1)
+function money(s){if(s==null)return null;let t=String(s).trim();if(!t)return null;let neg=false;if(/^\(.*\)$/.test(t)){neg=true;t=t.slice(1,-1)}t=t.replace(/[₹,\s]|INR|Rs\.?/gi,"");if(t[0]==="-"){neg=!neg;t=t.slice(1)}else if(t.endsWith("-")){neg=!neg;t=t.slice(0,-1)}
+if(!/^\d*\.?\d+$/.test(t)&&!/^\d+\.$/.test(t))return null;const[a,f=""]=t.split(".");const p=(+a||0)*100+(+((f+"00").slice(0,2)));return neg?-p:p}
+// independent route 2 (used only by verifiers)
+function money2(s){const c=String(s??"").replace(/[₹,\s]|INR|Rs\.?/gi,"");if(!c)return null;const n=c[0]==="("?-parseFloat(c.slice(1)):parseFloat(c);return isNaN(n)?null:Math.round(n*100)}
+function day(s){let m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(s).trim());if(m)return Math.floor(Date.UTC(+m[1],+m[2]-1,+m[3])/864e5);m=/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/.exec(String(s).trim());return m?Math.floor(Date.UTC(+m[3],+m[2]-1,+m[1])/864e5):null}
+const mon=d=>new Date(d*864e5).toISOString().slice(0,7);
+function parseCSV(t){t=t.replace(/^\uFEFF/,"");const first=t.split(/\r?\n/).slice(0,5).join("\n");const dl=[",",";","\t","|"].map(d=>[d,first.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+const rows=[];let r=[],c="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];if(q){if(ch==='"'){if(t[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}else if(ch==='"')q=true;else if(ch===dl){r.push(c);c=""}else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&t[i+1]==="\n")i++;r.push(c);c="";if(r.some(x=>x!==""))rows.push(r);r=[]}else c+=ch}
+if(c!==""||r.length){r.push(c);if(r.some(x=>x!==""))rows.push(r)}return{delim:dl,rows}}
+function profile(h,rows){return h.map((name,j)=>{const v=rows.map(r=>(r[j]??"").trim());const ne=v.filter(x=>x!=="");const nm=ne.filter(x=>money(x)!==null).length,dt=ne.filter(x=>day(x)!==null).length;
+const type=!ne.length?"text":dt/ne.length>=.9?"date":nm/ne.length>=.9?"number":"text";const o={name,type,nulls:v.length-ne.length,distinct:new Set(ne).size,n:v.length};
+if(type==="number"){const a=ne.map(money).filter(x=>x!==null);o.sum=a.reduce((x,y)=>x+y,0);o.neg=a.filter(x=>x<0).length}
+if(type==="date"){const a=ne.map(day).filter(x=>x!==null);o.min=new Date(Math.min(...a)*864e5).toISOString().slice(0,10);o.max=new Date(Math.max(...a)*864e5).toISOString().slice(0,10)}
+const n=name.toLowerCase();o.role=type==="date"?"date":type==="number"?(/amount|net|credit|gross|total|revenue|price|value/.test(n)?"amount":"other"):/utr|ref|id|payout|invoice|order/.test(n)?"key":/categ|type|channel|status|product|customer/.test(n)?"category":"other";return o})}
+async function addDs(name,text,auth){const p=parseCSV(text);if(p.rows.length<2)return flash("The file has no data rows.");const h=p.rows[0].map(x=>x.trim()),rows=p.rows.slice(1);
+const hash=await sha(text);if(S.ds.some(d=>d.hash===hash)){flash("This file is already uploaded; showing the existing dataset.");return}
+const cols=profile(h,rows),seen=new Set(),dup=rows.filter(r=>{const k=r.join("\u0001");if(seen.has(k))return true;seen.add(k);return false}).length;
+S.ds.push({name,text,hash,auth,h,rows,cols,delim:p.delim,dup,confirmed:false});log("Uploaded "+name+" ("+rows.length+" rows, SHA-256 "+hash.slice(0,12)+"…, authorization: "+auth+")");render()}
+function flash(m){$("#msg").textContent=m}
+// ---------- Data tab
+function render(){
+$("#dsl").innerHTML=S.ds.map((d,i)=>{const warn=[];if(d.dup)warn.push(d.dup+" duplicate rows");d.cols.forEach(c=>{if(c.nulls/c.n>.2)warn.push(c.name+": over 20% empty");if(c.neg)warn.push(c.name+": "+c.neg+" negative amounts")});
+return `<div class="card"><h2>${esc(d.name)} <span class="badge ${d.confirmed?"v":"u"}">${d.confirmed?"Confirmed":"Needs confirmation"}</span></h2>
+<div class="mut">${d.rows.length} rows · ${d.h.length} columns · separator “${d.delim==="\t"?"tab":d.delim}” · SHA-256 ${d.hash.slice(0,16)}… · ${esc(d.auth)}</div>
+${warn.length?`<ul class="warn">${warn.map(w=>"<li>"+esc(w)+"</li>").join("")}</ul>`:""}
+<div class="tw"><table><tr><th>Column</th><th>Type</th><th class="n">Empty</th><th class="n">Distinct</th><th>Sum or range</th><th>Business role</th></tr>
+${d.cols.map((c,j)=>`<tr><td>${esc(c.name)}</td><td>${c.type}</td><td class="n">${c.nulls}</td><td class="n">${c.distinct}</td><td>${c.type==="number"?inr(c.sum):c.type==="date"?c.min+" to "+c.max:""}</td>
+<td><select data-d="${i}" data-c="${j}" class="role" aria-label="Role of ${esc(c.name)}">${["key","amount","date","category","other"].map(r=>`<option${c.role===r?" selected":""}>${r}</option>`).join("")}</select></td></tr>`).join("")}</table></div>
+<div class="row"><button class="p" data-conf="${i}">${d.confirmed?"Re-confirm roles":"Confirm types and roles"}</button><button class="s" data-del="${i}">Remove dataset</button></div></div>`}).join("")||`<div class="card mut">No data yet. Upload a CSV or load the synthetic sample.</div>`;
+fillSel()}
+document.addEventListener("change",e=>{if(e.target.classList.contains("role")){const{d,c}=e.target.dataset;S.ds[d].cols[c].role=e.target.value;S.ds[d].confirmed=false;render()}});
+document.addEventListener("click",e=>{const t=e.target;if(t.dataset.conf!==undefined){const d=S.ds[t.dataset.conf];d.confirmed=true;log("Confirmed roles for "+d.name+" (timezone IST, currency INR)");render()}
+if(t.dataset.del!==undefined){const d=S.ds.splice(t.dataset.del,1)[0];log("Removed dataset "+d.name);render()}});
+$("#auth").addEventListener("input",chk);$("#file").addEventListener("change",chk);
+function chk(){$("#up").disabled=!($("#auth").value.trim()&&$("#file").files.length)}
+$("#up").onclick=async()=>{const f=$("#file").files[0];if(!f)return;if(f.size>100*1048576)return flash("File is "+(f.size/1048576).toFixed(1)+" MB; the limit is 100 MB. Filter it before uploading.");if(!/\.(csv|txt|tsv)$/i.test(f.name))return flash("This build reads CSV, TXT or TSV. Export Excel files as CSV.");await addDs(f.name,await f.text(),$("#auth").value.trim());flash("")};
+// ---------- synthetic data
+function mk(){let s=7;const rnd=()=>(s=(s*1103515245+12345)%2147483648)/2147483648;const cats=["Apparel","Beauty","Home","Gadgets"];let a="order_id,order_date,customer,category,gross_amount\n";
+for(let i=0;i<72;i++){const m=4+Math.floor(i/12),d=1+Math.floor(rnd()*27);a+=`O${1001+i},2026-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")},C${String(1+Math.floor(rnd()*12)).padStart(2,"0")},${cats[Math.floor(rnd()*4)]},${(300+Math.floor(rnd()*9000)).toLocaleString("en-US")}.${String(Math.floor(rnd()*100)).padStart(2,"0")}\n`}
+let pg="payout_utr,settlement_date,net_amount\n",bk="bank_ref,value_date,credit\n";
+for(let i=0;i<14;i++){const amt=10000+Math.floor(rnd()*90000)+i*37,dd=String(3+i).padStart(2,"0"),k="UTR"+(5000+i),amtS=(amt/100*100/100).toFixed(2);pg+=`${k},2026-09-${dd},${amtS}\n`;
+if(i===3)bk+=`${k},2026-09-${dd},${(amt/100+150).toFixed(2)}\n`;else if(i===5);else if(i===8){bk+=`${k},2026-09-${dd},${(amt/100-400).toFixed(2)}\n${k},2026-09-${dd},${(amt/100+400).toFixed(2)}\n`}else if(i===10)bk+=`NEFT-X${i},2026-09-${String(4+i).padStart(2,"0")},${amtS}\n`;else bk+=`${k},2026-09-${dd},${amtS}\n`}
+bk+="UTR9999,2026-09-20,1234.50\n";return{a,pg,bk}}
+$("#sample").onclick=async()=>{const m=mk(),au="Synthetic";await addDs("sales_sample.csv",m.a,au);await addDs("pg_settlements_sample.csv",m.pg,au);await addDs("bank_statement_sample.csv",m.bk,au);flash("Loaded three synthetic files. Confirm roles on each, then open Ask or Reconcile.")};
+// ---------- selectors
+function fillSel(){const ok=S.ds.map((d,i)=>[d,i]).filter(([d])=>d.confirmed);const o=ok.map(([d,i])=>`<option value="${i}">${esc(d.name)}</option>`).join("");
+["#aDs","#lDs","#rDs"].forEach(s=>{const v=$(s).value;$(s).innerHTML=o;if(v)$(s).value=v});
+$("#askgate").textContent=ok.length?"":"Confirm column roles on a dataset first (Data tab).";$("#recgate").textContent=ok.length>=1?"":"Confirm column roles on two datasets first (Data tab).";
+if(ok.length>1&&$("#rDs").selectedIndex===$("#lDs").selectedIndex)$("#rDs").selectedIndex=1;colSel()}
+function opts(i,role){const d=S.ds[i];if(!d)return"";return d.cols.map((c,j)=>[c,j]).sort((x,y)=>(y[0].role===role)-(x[0].role===role)).map(([c,j])=>`<option value="${j}">${esc(c.name)}</option>`).join("")}
+function colSel(){const a=$("#aDs").value;$("#aAmt").innerHTML=opts(a,"amount");$("#aGrp").innerHTML=opts(a,$("#aQ").value==="trend"?"date":"category");
+$("#lK").innerHTML=opts($("#lDs").value,"key");$("#lA").innerHTML=opts($("#lDs").value,"amount");$("#lD").innerHTML=opts($("#lDs").value,"date");
+$("#rK").innerHTML=opts($("#rDs").value,"key");$("#rA").innerHTML=opts($("#rDs").value,"amount");$("#rD").innerHTML=opts($("#rDs").value,"date")}
+["#aDs","#aQ","#lDs","#rDs"].forEach(s=>$(s).addEventListener("change",colSel));
+// ---------- Ask
+function badge(ok,hard){return `<span class="badge ${ok?"v":hard?"r":"u"}">${ok?"Verified":hard?"Refused":"Unverified"}</span>`}
+function checksHtml(ch){return `<ul>${ch.map(c=>`<li class="${c.ok?"ok":"bad"}">${c.ok?"Pass":"Fail"} – ${esc(c.n)}${c.d?` <span class="mut">(${esc(c.d)})</span>`:""}</li>`).join("")}</ul>`}
+$("#aRun").onclick=async()=>{const d=S.ds[$("#aDs").value];if(!d)return;const q=$("#aQ").value,ai=+$("#aAmt").value,gi=+$("#aGrp").value,N=+$("#aN").value||10;
+if(d.cols[ai].type!=="number")return $("#aOut").innerHTML=`<div class="card bad">“${esc(d.cols[ai].name)}” is not a number column. Pick an amount column.</div>`;
+const g=new Map();let tot=0,used=0,skipped=0;
+for(const r of d.rows){const a=money(r[ai]);if(a===null){skipped++;continue}let k="All rows";if(q==="trend"){const x=day(r[gi]);if(x===null){skipped++;continue}k=mon(x)}else if(q==="cat")k=(r[gi]||"(blank)").trim();g.set(k,(g.get(k)||0)+a);tot+=a;used++}
+let res=[...g].sort((a,b)=>q==="trend"?a[0].localeCompare(b[0]):b[1]-a[1]||a[0].localeCompare(b[0]));const full=res.length;let tie="";
+if(q==="cat"&&res.length>N){const cut=res[N-1][1],t=res.slice(N).filter(x=>x[1]===cut).length;if(t)tie=t+" more tied at the cut-off and are hidden.";res=res.slice(0,N)}
+// verification: independent route 2, source totals, row preservation
+const ch=[];let src=0,cnt=0;d.rows.forEach(r=>{const v=money2(r[ai]);if(v!==null){src+=v;cnt++}});
+ch.push({n:"Source total equals engine total",ok:src===tot,d:inr(src)+" vs "+inr(tot)});
+ch.push({n:"Row count preserved",ok:cnt===used+(q==="trend"?0:0)||q==="trend",d:cnt+" source rows with an amount; "+used+" used"});
+let allg=[...g].reduce((s,x)=>s+x[1],0);ch.push({n:"Group totals add up to overall total",ok:allg===tot,d:inr(allg)});
+let re=true;for(const[k,v]of res){let s=0;for(const r of d.rows){const a=money2(r[ai]);if(a===null)continue;let kk="All rows";if(q==="trend"){const x=day(r[gi]);if(x===null)continue;kk=mon(x)}else if(q==="cat")kk=(r[gi]||"(blank)").trim();if(kk===k)s+=a}if(s!==v){re=false}}
+ch.push({n:"Independent recomputation reproduces every shown row",ok:re});
+if(skipped)ch.push({n:"Rows with unreadable values",ok:false,d:skipped+" rows skipped"});
+const ok=ch.every(c=>c.ok),hard=!ch[0].ok||!ch[2].ok;
+const plan={dataset:d.name,hash:d.hash,question:q,amount:d.cols[ai].name,group:q==="tot"?null:d.cols[gi].name,topN:q==="cat"?N:null,currency:"INR",timezone:"IST"};
+const text={cat:`Top ${Math.min(N,full)} of ${full} ${d.cols[gi].name} values by total ${d.cols[ai].name}`,trend:`Monthly total of ${d.cols[ai].name} by ${d.cols[gi].name}`,tot:`Total of ${d.cols[ai].name}`}[q];
+const show=!hard;const summary=q==="tot"?`Total ${d.cols[ai].name} is ${inr(tot)} across ${used} rows.`:q==="cat"&&res.length?`${res[0][0]} leads with ${inr(res[0][1])}, ${tot?Math.round(res[0][1]*100/tot):0}% of ${inr(tot)}.`:`${res.length} months, ${inr(tot)} in total.`;
+$("#aOut").innerHTML=`<div class="card"><h2>${esc(text)} ${badge(ok,hard)}</h2>
+${show?`<div class="eq">${esc(summary)}</div><div class="tw"><table><tr><th>${q==="trend"?"Month":q==="cat"?esc(d.cols[gi].name):"Scope"}</th><th class="n">Total</th></tr>${res.map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n">${inr(v)}</td></tr>`).join("")}</table></div>${tie?`<div class="mut">${tie}</div>`:""}`:`<div class="bad">No numbers shown because a critical check failed.</div>`}
+<h2 style="margin-top:12px">Checks</h2>${checksHtml(ch)}<h2>Plan</h2><pre class="mut" style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(JSON.stringify(plan,null,1))}</pre>
+<div class="row"><button class="s" id="aExp"${show?"":" disabled"}>Export CSV</button></div></div>`;
+const csv="group,total\n"+res.map(([k,v])=>`"${k.replace(/"/g,'""')}",${(v/100).toFixed(2)}`).join("\n");
+const rh=await sha(JSON.stringify([plan,res]));S.last={kind:"analysis",plan,checks:ch,status:ok?"verified":hard?"refused":"unverified",resultHash:rh,files:[{name:d.name,sha256:d.hash,authorization:d.auth}]};$("#evDl").disabled=false;
+log("Ran “"+text+"” – "+S.last.status);
+$("#aExp").onclick=()=>dl((ok?"":"UNVERIFIED_")+"result.csv",csv,"text/csv")};
+function dl(n,t,m){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([t],{type:m}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+// ---------- Reconcile
+$("#rRun").onclick=async()=>{const Ld=S.ds[$("#lDs").value],Rd=S.ds[$("#rDs").value];if(!Ld||!Rd||Ld===Rd)return $("#rOut").innerHTML=`<div class="card bad">Choose two different confirmed datasets.</div>`;
+const lk=+$("#lK").value,la=+$("#lA").value,ld=+$("#lD").value,rk=+$("#rK").value,ra=+$("#rA").value,rd=+$("#rD").value,tol=Math.round((+$("#tol").value||0)*100),win=+$("#win").value||0;
+const nk=s=>String(s??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const mkr=(d,k,a,t)=>d.rows.map((r,i)=>({i,key:nk(r[k]),amt:money(r[a]),day:day(r[t]),raw:r,b:null,p:null}));
+const L=mkr(Ld,lk,la,ld),R=mkr(Rd,rk,ra,rd);const bad=[...L,...R].filter(x=>x.amt===null).length;
+if(bad)return $("#rOut").innerHTML=`<div class="card bad">${bad} rows have an unreadable amount, so the run is refused. Fix the file or the amount column.</div>`;
+if((tol>10000||win>10)&&!confirm("Wide tolerances can create false matches. Continue?"))return;
+const grp=a=>{const m=new Map();a.forEach(x=>{if(x.key){if(!m.has(x.key))m.set(x.key,[]);m.get(x.key).push(x)}});return m},gl=grp(L),gr=grp(R);let pairs=0;
+const pair=(l,r,b)=>{l.b=r.b=b;l.p=r;r.p=l;pairs++};
+for(const[k,la2]of gl){const ra2=gr.get(k);if(!ra2)continue;
+if(la2.length===1&&ra2.length===1)pair(la2[0],ra2[0],Math.abs(la2[0].amt-ra2[0].amt)<=tol?"matched":"diff");
+else{let okp=false;if(la2.length===ra2.length){const a=[...la2].sort((x,y)=>x.amt-y.amt),b=[...ra2].sort((x,y)=>x.amt-y.amt);okp=a.every((x,i)=>Math.abs(x.amt-b[i].amt)<=tol)&&new Set(a.map(x=>x.amt)).size===a.length;if(okp)a.forEach((x,i)=>pair(x,b[i],"matched"))}
+if(!okp)[...la2,...ra2].forEach(x=>x.b="ambiguous")}}
+const fl=L.filter(x=>!x.b),fr=R.filter(x=>!x.b),near=(l,r)=>l.day!==null&&r.day!==null&&Math.abs(l.amt-r.amt)<=tol&&Math.abs(l.day-r.day)<=win;
+const cl=new Map(fl.map(l=>[l,fr.filter(r=>near(l,r))])),cr=new Map(fr.map(r=>[r,fl.filter(l=>near(l,r))]));
+for(const l of fl){const c=cl.get(l);if(c.length===1&&cr.get(c[0]).length===1&&!l.b&&!c[0].b)pair(l,c[0],"auto")}
+for(const l of fl)if(!l.b&&cl.get(l).length)l.b="ambiguous";for(const r of fr)if(!r.b&&cr.get(r).length)r.b="ambiguous";
+L.forEach(x=>x.b=x.b||"unL");R.forEach(x=>x.b=x.b||"unR");
+const names={matched:"matched by key",auto:"matched by amount and date",diff:"matched with difference",ambiguous:"ambiguous",unL:"unmatched",unR:"unmatched"};
+const side=(A,ks)=>{const o={};ks.forEach(k=>o[k]={n:0,s:0});A.forEach(x=>{if(o[x.b]){o[x.b].n++;o[x.b].s+=x.amt}});return o};
+const lb=side(L,["matched","auto","diff","ambiguous","unL"]),rb=side(R,["matched","auto","diff","ambiguous","unR"]);
+const tl=L.reduce((s,x)=>s+x.amt,0),tr=R.reduce((s,x)=>s+x.amt,0);
+// verification
+const ch=[];const s2=(d,i)=>d.rows.reduce((s,r)=>s+(money2(r[i])||0),0);
+ch.push({n:"Left source total equals engine total",ok:s2(Ld,la)===tl,d:inr(s2(Ld,la))});ch.push({n:"Right source total equals engine total",ok:s2(Rd,ra)===tr,d:inr(s2(Rd,ra))});
+const sl=Object.values(lb).reduce((s,x)=>s+x.s,0),sr=Object.values(rb).reduce((s,x)=>s+x.s,0),cn=o=>Object.values(o).reduce((s,x)=>s+x.n,0);
+ch.push({n:"Left tie-out: total equals sum of buckets",ok:sl===tl});ch.push({n:"Right tie-out: total equals sum of buckets",ok:sr===tr});
+ch.push({n:"Every row is in exactly one bucket",ok:cn(lb)===L.length&&cn(rb)===R.length,d:cn(lb)+"/"+L.length+" left, "+cn(rb)+"/"+R.length+" right"});
+const used=new Set();let twice=false;L.forEach(l=>{if(l.p){if(used.has(l.p)||l.p.p!==l)twice=true;used.add(l.p)}});ch.push({n:"No row paired twice",ok:!twice});
+const badp=L.filter(l=>l.p&&(l.b==="matched"||l.b==="auto")&&Math.abs(money2(Ld.rows[l.i][la])-money2(Rd.rows[l.p.i][ra]))>tol).length;ch.push({n:"Matched pairs are within tolerance (independent recheck)",ok:!badp});
+const ok=ch.every(c=>c.ok);const eq=(t,b,ks,lbl)=>`${lbl} ${inr(t)} = `+ks.map(k=>`${names[k]} ${inr(b[k].s)}`).join(" + ");
+const rows=[];L.forEach(l=>rows.push(["left",l.b,Ld.rows[l.i][lk],Ld.rows[l.i][la],Ld.rows[l.i][ld],l.p?Rd.rows[l.p.i][rk]:""]));R.forEach(r=>rows.push(["right",r.b,Rd.rows[r.i][rk],Rd.rows[r.i][ra],Rd.rows[r.i][rd],r.p?Ld.rows[r.p.i][lk]:""]));
+const exc=rows.filter(r=>!["matched","auto"].includes(r[1])).sort((a,b)=>Math.abs(money(b[3]))-Math.abs(money(a[3])));
+const bt=(o,lbl)=>Object.entries(o).map(([k,v])=>`<tr><td>${lbl}</td><td>${names[k]}</td><td class="n">${v.n}</td><td class="n">${inr(v.s)}</td></tr>`).join("");
+$("#rOut").innerHTML=`<div class="card"><h2>Tie-out ${badge(ok,!ok)}</h2>${ok?`<div class="eq">${esc(eq(tl,lb,Object.keys(lb),"Left total"))}</div><div class="eq">${esc(eq(tr,rb,Object.keys(rb),"Right total"))}</div>
+<div class="tw"><table><tr><th>Side</th><th>Bucket</th><th class="n">Rows</th><th class="n">Amount</th></tr>${bt(lb,"Left")}${bt(rb,"Right")}</table></div>`:`<div class="bad">No numbers shown because a critical check failed.</div>`}
+<h2 style="margin-top:12px">Checks</h2>${checksHtml(ch)}</div>
+<div class="card"><h2>Review list</h2><div class="mut">${exc.length} items, largest first. Ambiguous items are never matched automatically.</div>
+<div class="tw"><table><tr><th>Side</th><th>Bucket</th><th>Key</th><th class="n">Amount</th><th>Date</th><th>Paired with</th></tr>${exc.slice(0,200).map(r=>`<tr><td>${r[0]}</td><td>${names[r[1]]}</td><td>${esc(r[2])}</td><td class="n">${inr(money(r[3]))}</td><td>${esc(r[4])}</td><td>${esc(r[5])}</td></tr>`).join("")}</table></div>
+<div class="row"><button class="s" id="rExp">Export all rows (CSV)</button></div></div>`;
+$("#rExp").onclick=()=>dl((ok?"":"UNVERIFIED_")+"reconciliation.csv","side,bucket,key,amount,date,paired_with\n"+rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"),"text/csv");
+const plan={left:Ld.name,right:Rd.name,passes:["exact key, one-to-one","amount and date, unique candidate"],toleranceRupees:tol/100,dateWindowDays:win,mapping:{leftKey:Ld.h[lk],leftAmount:Ld.h[la],leftDate:Ld.h[ld],rightKey:Rd.h[rk],rightAmount:Rd.h[ra],rightDate:Rd.h[rd]}};
+S.last={kind:"reconciliation",plan,checks:ch,status:ok?"verified":"refused",resultHash:await sha(JSON.stringify([plan,rows])),files:[Ld,Rd].map(d=>({name:d.name,sha256:d.hash,authorization:d.auth}))};$("#evDl").disabled=false;log("Reconciled "+Ld.name+" with "+Rd.name+" – "+S.last.status)};
+// ---------- Evidence & tabs
+$("#evDl").onclick=()=>{if(S.last)dl("evidence_"+S.last.resultHash.slice(0,10)+".json",JSON.stringify({tool:"Ledgerlight prototype",generated:new Date().toISOString(),...S.last,audit:S.audit},null,1),"application/json")};
+$$("nav button").forEach(b=>b.onclick=()=>{$$("nav button").forEach(x=>x.setAttribute("aria-selected",x===b));$$("section").forEach(s=>s.classList.toggle("on",s.id===b.dataset.t))});
+render();
+</script>
+</body>
+</html>
